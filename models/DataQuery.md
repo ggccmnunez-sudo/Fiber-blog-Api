@@ -27,3 +27,33 @@ Try credentials:
     "password": "123"
     
 }
+
+{
+    "message": "Registered successfully",
+    "user": {
+        "id": 10,
+        "username": "aloha",
+        "email": "@loha12",
+        "created_at": "2026-08-11T07:16:48.584510223+08:00"
+    }
+}
+
+{
+  "email":"byerss",
+  "password":"123"
+}
+----Separate your struct and your data----
+Structs:
+type RegisterRequest struct {
+    Username string `json:"username"`
+    Email    string `json:"email"`
+    Password string `json:"password"`
+} 
+
+Model/Data:
+type User struct {
+    ID       int    `json:"id"`
+    Username string `json:"username"`
+    Email    string `json:"email"`
+    Password string `json:"-"`
+}

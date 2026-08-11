@@ -11,8 +11,9 @@ import (
 
 func Hashedpassword(password string) (string, error) {
 	//created a variable to use to hashed the password
-	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	//bcrypt.DefaultCost - swap sa 14
 
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
 	}
@@ -34,6 +35,13 @@ func Register(c fiber.Ctx) error {
 			"message": "Failed to hashed password",
 		})
 	}
+
+	if user.Email == "" || user.Password == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Email and password are required",
+		})
+	}
+	//Good practice to validate in here after registering if the input is valid like an empty string(""), so that it will not register even if its empty string
 
 	user.Password = hashed
 
@@ -68,6 +76,12 @@ func Login(c fiber.Ctx) error {
 		})
 	}
 
+	if input.Email == "" || input.Password == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Failed to log in",
+		})
+	}
+
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
 	if err != nil {
 		fmt.Println("bcrypt compare error:", err) //debugger
@@ -80,20 +94,6 @@ func Login(c fiber.Ctx) error {
 	fmt.Println("Found user:", user.Email, user.Password) //debugger
 
 	fmt.Println("Input password:", input.Password) //debugger
-
-	//Temporary generated from gpt
-	// err := bcrypt.CompareHashAndPassword(
-	// 	[]byte(user.Password),
-	// 	[]byte(input.Password),
-	// )
-
-	// if err != nil {
-	// 	fmt.Println("bcrypt compare error:", err)
-
-	// 	return c.Status(401).JSON(fiber.Map{
-	// 		"message": "Invalid Credentials",
-	// 	})
-	// }
 
 	return c.Status(200).JSON(fiber.Map{
 		"message": "Log in successfully",
