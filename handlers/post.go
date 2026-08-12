@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fiber-blog-api/data"
+	"fiber-blog-api/dto"
 	"fiber-blog-api/models"
 
 	"github.com/gofiber/fiber/v3"
@@ -44,6 +45,10 @@ func CreatePost(c fiber.Ctx) error {
 		})
 	}
 
+	//calling the middleware
+	userID := c.Locals("user_id").(uint)
+	post.UserID = userID
+
 	results := data.DB.Create(&post)
 	if results.Error != nil {
 		return c.Status(500).JSON(fiber.Map{
@@ -59,10 +64,27 @@ func CreatePost(c fiber.Ctx) error {
 
 func UpdatePost(c fiber.Ctx) error {
 	var post models.Post
+	id := c.Params("id")
 
-	if err := c.Bind().Body(&post); err != nil {
+	if err := data.DB.First(&post, id).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{
-			"message": "User doesn't exist",
+			"message": "post not found",
+		})
+	}
+
+	//calling the middleware
+	userId := c.Locals("user_id").(uint)
+	if post.UserID != userId {
+		return c.Status(403).JSON(fiber.Map{
+			"error": "You can only update your own post",
+		})
+	}
+
+	//creating post
+	var inputs dto.CreatePost
+	if err := c.Bind().Body(&inputs); err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"message": "Post doesn't exist",
 		})
 	}
 
@@ -88,6 +110,13 @@ func DeletePost(c fiber.Ctx) error {
 	if err := data.DB.First(&post, id).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{
 			"message": "Post not found",
+		})
+	}
+
+	userId := c.Locals("user_id").(uint)
+	if post.UserID != userId {
+		return c.Status(403).JSON(fiber.Map{
+			"error": "You can only delete your own post",
 		})
 	}
 
