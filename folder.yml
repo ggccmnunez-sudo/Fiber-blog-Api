@@ -1,0 +1,7 @@
+info:
+  name: 7-28-26
+  type: folder
+  seq: 3
+
+request:
+  auth: inherit
