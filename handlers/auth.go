@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"fiber-blog-api/data"
+	"fiber-blog-api/dto"
 	"fiber-blog-api/models"
-	"fmt"
+	"fiber-blog-api/utils"
 
 	"github.com/gofiber/fiber/v3"
 	"golang.org/x/crypto/bcrypt"
@@ -21,99 +22,99 @@ func Hashedpassword(password string) (string, error) {
 }
 
 func Register(c fiber.Ctx) error {
-	var user models.User
-	if err := c.Bind().Body(&user); err != nil {
+	var register dto.RegisterInputs
+	if err := c.Bind().Body(&register); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"message": "Invalid request body",
 		})
 	}
-
+	//Good practice to validate in here after registering if the input is valid like an empty string("")
+	// so that it will not register even if its an empty string
+	if register.Email == "" || register.Password == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Email and password are required",
+		})
+	}
 	// call the hashed variable to hash the password
-	hashed, err := Hashedpassword(user.Password)
+	hashed, err := Hashedpassword(register.Password)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"message": "Failed to hashed password",
 		})
 	}
 
-	if user.Email == "" || user.Password == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"error": "Email and password are required",
-		})
+	register.Password = hashed
+
+	user := models.User{
+		Username: register.Username,
+		Email:    register.Email,
+		Password: register.Password,
 	}
-	//Good practice to validate in here after registering if the input is valid like an empty string(""), so that it will not register even if its empty string
-
-	user.Password = hashed
-
 	results := data.DB.Create(&user)
+
 	if results.Error != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"message": "Failed to create user",
 		})
 	}
 
+	token, err := utils.GenerateJwt(user.ID, user.Username)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"message": "Failed to generate token",
+		})
+	}
+
 	return c.Status(201).JSON(fiber.Map{
 		"message": "Registered successfully",
 		"user":    user,
+		"token":   token,
 	})
 }
 
 func Login(c fiber.Ctx) error {
 
-	var input models.LogIn
+	var loginInput dto.LoginInput
 
-	if err := c.Bind().Body(&input); err != nil {
+	if err := c.Bind().Body(&loginInput); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"message": "Invalid request body",
 		})
 	}
 
+	if loginInput.Email == "" || loginInput.Password == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Failed to log in",
+		})
+	}
+
 	var user models.User
-	results := data.DB.Where("email = ?", input.Email).First(&user)
+	results := data.DB.Where("email = ?", loginInput.Email).First(&user)
 	if results.Error != nil {
 		return c.Status(401).JSON(fiber.Map{
 			"message": "Invalid Credentials",
 		})
 	}
 
-	if input.Email == "" || input.Password == "" {
-		return c.Status(400).JSON(fiber.Map{
-			"error": "Failed to log in",
-		})
-	}
-
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginInput.Password))
 	if err != nil {
-		fmt.Println("bcrypt compare error:", err) //debugger
 
 		return c.Status(401).JSON(fiber.Map{
 			"message": "Invalid Credentials",
 		})
 	}
 
-	fmt.Println("Found user:", user.Email, user.Password) //debugger
-
-	fmt.Println("Input password:", input.Password) //debugger
+	token, err := utils.GenerateJwt(user.ID, user.Username)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"message": "Failed to generate token",
+		})
+	}
 
 	return c.Status(200).JSON(fiber.Map{
 		"message": "Log in successfully",
 		"user":    user,
+		"token":   token,
 	})
 
 }
-
-// Hard coded
-// func TempDelete(c fiber.Ctx) error {
-// 	var delete models.User
-// 	result := data.DB.Where("email = ?", "@loha12").Delete(&models.User{})
-
-// 	if result.Error != nil {
-// 		return c.Status(500).JSON(fiber.Map{
-// 			"message": "Failed to delete user",
-// 		})
-// 	}
-// 	return c.Status(200).JSON(fiber.Map{
-// 		"message": "User deleted successfully",
-// 		"delete":  delete,
-// 	})
-// }
